@@ -1,11 +1,9 @@
 ## Douban Leaderboard Spider
 
-[FROM](https://movie.douban.com/chart)
-
-1. 访问 https://common.diditaxi.com.cn/general/webEntry?h=1#/order-list
-2. 复制请求参数的 token 到 history.py
+1. 登录 https://common.diditaxi.com.cn/general/webEntry?h=1#/
+2. 复制 Cookie 到 spider.js
 
 ```shell script
-pip install -r requirements.txt
-python quickstart.py
+npm install
+node src/spider.js
 ```
