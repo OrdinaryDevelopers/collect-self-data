@@ -2,13 +2,49 @@ const puppeteer = require('puppeteer');
 const devices = require('puppeteer/DeviceDescriptors');
 var fs = require('fs');
 
-const COOKIES = 'webapp_wx_client_uid=6c3551f1fa262eac3e5188b06b83f843; openid=general_app; webapphome_accesstime=1578033305764.9; _OMGID=a6e78692-ffac-46d8-83a3-448b9eb5399c; ticket=PDvaQmNiSJMwy8AAqv0mFBQoOZ9aTHidHouSgEuNaqskzDluwzAQhtG7fPVA-DlDitS06XOHLMrSMEAMV4LubtiuH_AOpkhi0SKMWchiTCdDUjVmkKW3zasPySPuXEkZs5G8vGK8kWC8kz5q33qta4nVi4zPR7iTB5e_6__HTrbT-CJL6-vw8DGMb5LSXIqmLsf4eZa_pM5bAAAA__8=; a3=7eQOmsbpHjDJGZGvWNjk2Di9X9SJ+EXAgxMwqyBvPYh7vI2j95PhZKNpbxmaKjpDhJl1KOM8Ro6S+CdzfvxUzrNWMPSb5AIx0lZpto4E0Vr9vjGYfmtUE+bDhwZ0xNuDAMU2WO2wEMDBVAkofcrspKiMf4Vqe76DSadRpnG2FcrHCRsMpqFEajAcc4QeR8ny8Ic8h6jjTi5BSczeHBz5bUomCdmUWj/Ei4IDvHAKNIVv6IIPIVXMt09aknQk7tXxqDiz5ldHMAGe0EGOOZMIugYh9au9LaumS+agIWg17dx+LN/1hpkMUXQKeKKH+Sng5zRGSutvJiyDxGjUG14eOA==';
+const cookies = fs.readFileSync('cookies.txt');
+if (!cookies) {
+    throw new Error('Cookie 不存在');
+}
 
 /**
  * 存储数据
  */
 let pages = [];
 let orders = [];
+
+(async () => {
+    const browser = await puppeteer.launch({headless: false});
+    try {
+        const page = await browser.newPage();
+        // await page.emulate(devices['Galaxy S5']); // 使用设备无法触发单击事件。
+
+        page.on('response', response => {
+            // console.log(response.url());
+            if (response.url().includes('passenger/history')) {
+                response.text().then(body => {
+                    pages.push(JSON.parse(body));
+                    console.log('new list data');
+                })
+            } else if (response.url().includes('passenger/v2/core/pOrderDetail')) {
+                response.text().then(body => {
+                    orders.push(JSON.parse(body));
+                    console.log('new detailed data');
+                })
+            }
+        });
+
+        await handle_cookie(page);
+        await hide_dialog(page);
+        await click_orders(0, page);
+    } catch (e) {
+        console.log(e)
+    } finally {
+        await browser.close();
+        await save_data();
+    }
+})();
+
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -20,11 +56,12 @@ function sleep(ms) {
 function extracted_cookies(domain, string) {
     let cookies = [];
     string.split(';').forEach(e => {
-        let cookie = e.split('=');
+        let key = e.substring(0, e.indexOf('=')).trim();
+        let val = e.substring(e.indexOf('=') + 1).trim();
         cookies.push({
             domain: domain,
-            name: cookie[0].trim(),
-            value: cookie[1].trim()
+            name: key,
+            value: val
         })
     });
 
@@ -52,7 +89,7 @@ async function hide_dialog(page) {
  * 处理 cookie 登录态
  */
 async function handle_cookie(page) {
-    let cookies = extracted_cookies('common.diditaxi.com.cn', COOKIES);
+    let cookies = extracted_cookies('common.diditaxi.com.cn', cookies);
     let ticket = cookies.filter(e => e.name === 'ticket')[0].value;
     await page.setCookie(...cookies);
 
@@ -60,9 +97,9 @@ async function handle_cookie(page) {
     await page.goto(login_status_domain);
 
     // 登录态
-    await page.evaluate(() => {
-        console.log(window.localStorage.setItem('ticket', 'YpCn_969nuNHy7RBSlD0qCkWyuP5tmupZHo2cKr3s94kzDuqwzAQhtG9fPVgfs1Ilj3t7e8e7sN5NAokpDLeewipD5ydIZKYNAljFLIYw8mQVI0RZOlt9eqL5BFvrqSM0Ui-vjF-SDB-SV9qX3utc4nZi4x_MoyN3Hncnve_jWyHcSJL64siVnXjTFKaS9HU5RiXT3kldbwCAAD__w=='));
-    });
+    await page.evaluate((val) => {
+        console.log(window.localStorage.setItem('ticket', val));
+    }, ticket);
     let target_page = 'https://common.diditaxi.com.cn/general/webEntry?h=1#/order-list';
     await page.goto(target_page, {waitUntil: 'networkidle2'});
 }
@@ -97,14 +134,19 @@ async function click_orders(count, page) {
  * 去重后保存数据
  */
 async function save_data() {
+    const result_path = '../result';
+    if (!fs.existsSync(result_path)) {
+        fs.mkdirSync(result_path);
+    }
+
     let pset = new Set();
-    await fs.writeFile('pages.json', JSON.stringify(pages.filter(e => !pset.has(e.timemode) && pset.add(e.timemode))), 'utf8', (err) => {
+    await fs.writeFile(`${result_path}/list.json`, JSON.stringify(pages.filter(e => !pset.has(e.timemode) && pset.add(e.timemode))), 'utf8', (err) => {
         if (err) throw err;
         console.log('done');
     });
 
     let oset = new Set();
-    await fs.writeFile('orders.json', JSON.stringify(orders.filter(e => !oset.has(e.data.basic_data.order_info.order_id) && oset.add(e.data.basic_data.order_info.order_id))), 'utf8', (err) => {
+    await fs.writeFile(`${result_path}/detailed.json`, JSON.stringify(orders.filter(e => !oset.has(e.data.basic_data.order_info.order_id) && oset.add(e.data.basic_data.order_info.order_id))), 'utf8', (err) => {
         if (err) throw err;
         console.log('done');
     });
@@ -127,46 +169,3 @@ async function next_page(page, count) {
         await click_orders(count, page);
     }
 }
-
-(async () => {
-    const browser = await puppeteer.launch({headless: false});
-    try {
-        const page = await browser.newPage();
-        // await page.emulate(devices['Galaxy S5']); // 使用设备无法触发单击事件。
-
-        page.on('response', response => {
-            // console.log(response._url);
-            if (response._url.includes('passenger/history')) {
-                response.text().then(body => {
-                    pages.push(JSON.parse(body));
-                    console.log('new list data');
-                })
-            } else if (response._url.includes('passenger/v2/core/pOrderDetail')) {
-                response.text().then(body => {
-                    orders.push(JSON.parse(body));
-                    console.log('new detailed data');
-                })
-            }
-        });
-
-        /**
-         * 伪装登录态
-         */
-        await handle_cookie(page);
-
-        /**
-         * 隐藏提示框
-         */
-        await hide_dialog(page);
-
-        /**
-         * 自动进入订单详情页 & 翻页
-         */
-        await click_orders(0, page);
-    } catch (e) {
-        console.log(e)
-    } finally {
-        await browser.close();
-        await save_data();
-    }
-})();
