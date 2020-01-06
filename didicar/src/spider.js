@@ -2,8 +2,8 @@ const puppeteer = require('puppeteer');
 const devices = require('puppeteer/DeviceDescriptors');
 var fs = require('fs');
 
-const cookies = fs.readFileSync('cookies.txt');
-if (!cookies) {
+const cookies_string = fs.readFileSync('cookies.txt', 'utf8');
+if (!cookies_string) {
     throw new Error('Cookie 不存在');
 }
 
@@ -17,19 +17,15 @@ let orders = [];
     const browser = await puppeteer.launch({headless: false});
     try {
         const page = await browser.newPage();
-        // await page.emulate(devices['Galaxy S5']); // 使用设备无法触发单击事件。
-
         page.on('response', response => {
             // console.log(response.url());
             if (response.url().includes('passenger/history')) {
                 response.text().then(body => {
                     pages.push(JSON.parse(body));
-                    console.log('new list data');
                 })
             } else if (response.url().includes('passenger/v2/core/pOrderDetail')) {
                 response.text().then(body => {
                     orders.push(JSON.parse(body));
-                    console.log('new detailed data');
                 })
             }
         });
@@ -89,7 +85,7 @@ async function hide_dialog(page) {
  * 处理 cookie 登录态
  */
 async function handle_cookie(page) {
-    let cookies = extracted_cookies('common.diditaxi.com.cn', cookies);
+    let cookies = extracted_cookies('common.diditaxi.com.cn', cookies_string);
     let ticket = cookies.filter(e => e.name === 'ticket')[0].value;
     await page.setCookie(...cookies);
 
@@ -113,18 +109,27 @@ async function click_orders(count, page) {
     /**
      * 防止当前页没有数据
      */
-    if (!orders) {
+    if (!orders || orders.length === count) {
         await next_page(page, count);
     } else {
         for (; count < orders.length; count++) {
             console.log(`click order: ${count}`)
 
-            orders[count].click();
-            await page.waitFor('.app-driver-card-content');
-            await page.goBack();
+            let can_back = true;
+            await orders[count].click();
+            try {
+                await page.waitFor('.app-driver-card-content', {timeout: 3000});
+            } catch (e) {
+                console.warn('发现一笔只能在手机APP查看的订单,暂且跳过...');
+                can_back = false;
+            }
+            if (can_back) {
+                await sleep(500);
+                await page.goBack();
+            }
 
             if (count === orders.length - 1) {
-                await next_page(page, count);
+                await next_page(page, count + 1);
             }
         }
     }
@@ -156,14 +161,16 @@ async function save_data() {
  * 翻页,直到最后一页(没有数据)
  */
 async function next_page(page, count) {
-    let next_page = await page.$('.get-more-btn');
-    let text = await page.evaluate(e => e.innerText, next_page)
+    await sleep(1000);
 
-    if (text.includes('没有')) {
-        console.log('orders extracted complete...')
+    let next_page = await page.$('.get-more-btn');
+    let text = await page.evaluate(e => e.innerText, next_page);
+
+    if (text.includes('没有更多订单')) {
+        console.log('订单提取完成...')
     } else {
         console.log(text);
-        next_page.click();
+        await next_page.click();
 
         await sleep(1000);
         await click_orders(count, page);

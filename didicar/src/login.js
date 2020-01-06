@@ -1,3 +1,8 @@
+/**
+ * 不保证稳定性,有可能会
+ * @type {exports|*}
+ */
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
@@ -22,21 +27,6 @@ const get_line = (function () {
     const browser = await puppeteer.launch({headless: false});
     try {
         const page = await browser.newPage();
-
-        page.on('request', request => {
-            if (request.url().includes('passenger/history')) {
-                let cookies = request.cookies();
-                console.log(cookies);
-
-                let cookies_string = '';
-                cookies.forEach(e => {
-                    cookies_string += `${e.name}=${e.value};`;
-                });
-
-                fs.writeFile('cookies.txt', cookies_string, e => e);
-            }
-        });
-
         await page.goto('https://common.diditaxi.com.cn/general/webEntry?h=1#/', {waitUntil: 'networkidle2'});
 
         /**
@@ -51,8 +41,14 @@ const get_line = (function () {
         await input_phone(page);
         await input_captcha(page);
         await input_sms_code(page);
+        rl.close();
 
-        await page.waitForFrameNavigation();
+        let target_page = 'https://common.diditaxi.com.cn/general/webEntry?h=1#/order-list';
+        await page.goto(target_page, {waitUntil: 'networkidle2'});
+
+        let cookies = await page.evaluate(() => document.cookie);
+        fs.writeFile('cookies.txt', cookies, e => e);
+        console.log('已完成登录');
     } catch (e) {
         console.log('error: ', e);
     } finally {
@@ -71,9 +67,16 @@ function sleep(ms) {
  * 通过文案判断是否跳转页面(未跳转说明当前步骤异常)
  */
 async function flag_includes(page, includes) {
-    let success_flag = await page.$('body > div.login-wrapper.add-trans.show > div > div > div.title');
-    let title = await page.evaluate(e => e.innerText, success_flag);
-    return title.includes(includes);
+    try {
+        let success_flag = await page.$('body > div.login-wrapper.add-trans.show > div > div > div.title');
+        if (!success_flag) {
+            return false;
+        }
+        let title = await page.evaluate(e => e.innerText, success_flag);
+        return title.includes(includes);
+    } catch (e) {
+        return false;
+    }
 }
 
 /**
@@ -84,12 +87,13 @@ async function input_phone(page) {
 
     await page.keyboard.type(await get_line(), {delay: 100});
     (await page.waitForSelector('body > div.login-wrapper.add-trans.show > div > div > div.option > div > div')).click();
+    await sleep(100);
     (await page.waitForSelector('body > div.login-wrapper.add-trans.show > div > div > div.ensure-button.active')).click();
 
     await sleep(1000);
 
     if (await flag_includes(page, '输入手机号')) {
-        throw new Error('操作频次过高,请稍后再试');
+        await input_phone(page);
     }
 }
 
