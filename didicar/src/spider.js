@@ -13,6 +13,22 @@ if (!cookies_string) {
 let pages = [];
 let orders = [];
 
+async function no_recent_trip(page) {
+    try {
+        await page.waitFor('div.order-list-empty');
+        await page.evaluate(() => {
+            /**
+             * 日志在控制台看
+             */
+            document.querySelector("div.order-list-empty").setAttribute('style', 'display: none');
+            document.querySelector("div.get-more-btn").setAttribute('style', '');
+            console.log('back on track');
+        })
+    } catch (e) {
+        await no_recent_trip(page);
+    }
+}
+
 (async () => {
     const browser = await puppeteer.launch({headless: false});
     try {
@@ -32,6 +48,9 @@ let orders = [];
 
         await handle_cookie(page);
         await hide_dialog(page);
+
+        await no_recent_trip(page);
+
         await click_orders(0, page);
     } catch (e) {
         console.log(e)
