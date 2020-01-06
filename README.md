@@ -14,11 +14,6 @@
 
 > 加深自我认知, 数据是不会说谎的...
 
-### 扩展阅读
-
-- [神秘的程序员们 -《数据将来时》0](https://mp.weixin.qq.com/s/nR666bmgpd0dfxnEAZ1SfA)
-- [加州消费者隐私法(CCPA): 用户有权拿到自己的数据](https://www.csoonline.com/article/3292578/california-consumer-privacy-act-what-you-need-to-know-to-be-compliant.html)
-
 ### 关于可能存在的法律风险
 
 该项目的初衷只为收集自己产生的数据, 由于项目本身是开源的, 存在被用作违法的可能性。同时需要指出(避嫌)的是, 本项目所有的爬虫模块都需要用户自己登录各软件后复制 `cookie` 才能跑起来, 这意味着登录态是由使用者提供的, 所以产生的一切法律后果由使用者自己承担。 
@@ -28,3 +23,8 @@
 - [微信账单](./tenpay)
 - [滴滴订单](./didicar)
 - [携程订单](./ctrip)
+
+### 扩展阅读
+
+- [神秘的程序员们 -《数据将来时》0](https://mp.weixin.qq.com/s/nR666bmgpd0dfxnEAZ1SfA)
+- [加州消费者隐私法(CCPA): 用户有权拿到自己的数据](https://www.csoonline.com/article/3292578/california-consumer-privacy-act-what-you-need-to-know-to-be-compliant.html)
