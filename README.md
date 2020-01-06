@@ -27,4 +27,4 @@
 ### 扩展阅读
 
 - [神秘的程序员们 -《数据将来时》0](https://mp.weixin.qq.com/s/nR666bmgpd0dfxnEAZ1SfA)
-- [加州消费者隐私法(CCPA): 用户应该有权处置自己的数据](https://www.csoonline.com/article/3292578/california-consumer-privacy-act-what-you-need-to-know-to-be-compliant.html)
+- [加州出台消费者隐私法(CCPA): 用户应该有权处置自己的数据](https://www.csoonline.com/article/3292578/california-consumer-privacy-act-what-you-need-to-know-to-be-compliant.html)
