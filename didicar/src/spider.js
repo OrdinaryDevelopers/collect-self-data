@@ -15,7 +15,11 @@ let orders = [];
 
 async function no_recent_trip(page) {
     try {
-        await page.waitFor('div.order-list-empty');
+        try {
+            await page.waitFor('div.order-list-empty', {timeout: 2000});
+        } catch (e) {
+            return;
+        }
         await page.evaluate(() => {
             /**
              * 日志在控制台看
