@@ -7,7 +7,7 @@
 **注:** 可以自动化登录, 运行命令 `node src/login.js` 按照提示输入手机号码、图形验证码、短信验证码即可自动将 cookie 存到文件, 但不保证稳定, 我测试的时候被限制登录了...
 
 ```shell script
-npm install
+npm install puppeteer
 node src/spider.js
 ```
 
