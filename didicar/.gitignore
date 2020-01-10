@@ -4,3 +4,4 @@ node_modules
 *.iml
 *.json
 *.csv
+!package-lock.json
